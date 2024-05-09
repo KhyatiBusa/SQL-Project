@@ -1,0 +1,113 @@
+SELECT * FROM `famous-cursor-380420.Project1.Covid_Data` LIMIT 100;
+
+-- Select data that we are using
+
+SELECT  location, date, total_cases, total_deaths, population
+FROM `famous-cursor-380420.Project1.Covid_Data`
+Order By 1, 2;
+
+-- Looking for unique names in location
+
+SELECT location
+FROM `famous-cursor-380420.Project1.Covid_Data`
+GROUP BY location
+Order By 1;
+
+-- Looking for total cases in United States
+
+SELECT  location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as DeathPercentage
+FROM `famous-cursor-380420.Project1.Covid_Data`
+Where location like 'United States'
+Order By 1, 2;
+-- Here we can see that After 7 may, 2023 number of total cases stays same until march 2024. This means according to data there is no case of COVID after 7 May, 2023 or the data didn't get updated.
+
+-- Looking at total cases vs Population to see what percentage of population got COVID
+
+SELECT  location, date, total_cases, population, (total_cases/population)*100 as PercentofPopulationInfected
+FROM `famous-cursor-380420.Project1.Covid_Data`
+Where location like 'United States'
+Order By 1, 2;
+
+--Highest Infection rate compared to population
+
+SELECT  location, MAX(total_cases) as HighestInfectionCount, population, MAX((total_cases/population))*100 as PercentofPopulationInfected
+FROM `famous-cursor-380420.Project1.Covid_Data`
+GROUP BY location, population
+Order By PercentofPopulationInfected desc;
+
+--Highest Death Count vs Population
+
+SELECT  location, MAX(total_deaths) as TotalDeathCount
+FROM `famous-cursor-380420.Project1.Covid_Data`
+GROUP BY location
+Order By TotalDeathCount desc;
+--Here we can see the problem with dataset that location column has different type of attributes like continent, countries and grouping according income. To see just country United States comes on top 
+
+SELECT  location
+FROM `famous-cursor-380420.Project1.Covid_Data`
+WHERE continent is null
+GROUP BY location;
+
+--Death Count by Continent
+
+SELECT  location, MAX(total_deaths) as TotalDeath
+FROM `famous-cursor-380420.Project1.Covid_Data`
+WHERE continent is null
+GROUP BY location;
+ 
+--Looking for infection and Death rate for differrent income level
+
+SELECT location, MAX(total_deaths) as TotalDeath, MAX((total_deaths/population))*100 as PercentofPopulationDeath, MAX(total_cases) as TotalInfection, MAX((total_cases/population))*100 as PercentofPopulationInfected
+FROM `famous-cursor-380420.Project1.Covid_Data`
+WHERE location IN ('High income', 'Low income', 'Upper middle income', 'Lower middle income')
+GROUP BY location;
+
+--Global Numbers
+
+SELECT 
+    SUM(new_cases) AS total_new_cases, 
+    SUM(new_deaths) AS total_new_deaths, 
+    CASE 
+        WHEN SUM(new_cases) = 0 THEN 0 -- Handle division by zero
+        ELSE SUM(new_deaths) / SUM(new_cases) * 100 
+    END AS DeathPercentage
+FROM 
+    `famous-cursor-380420.Project1.Covid_Data`
+WHERE 
+    continent IS NOT NULL;
+
+--Total Population vs Total Vaccination
+
+SELECT continent, location, date, population, new_vaccinations, SUM(new_vaccinations) over (PARTITION BY location ORDER BY location, date) as PeopleVaccinated
+FROM `famous-cursor-380420.Project1.Covid_Data`
+WHERE continent is not null
+Order By 1, 2;
+
+
+--SubQuery
+
+SELECT continent, location, date, population, new_vaccinations, PeopleVaccinated, 
+    -- Example: Calculate the percentage of population vaccinated
+     PeopleVaccinated / population * 100 AS VaccinationPercentage
+FROM (
+    SELECT continent, location, date, population, new_vaccinations, SUM(new_vaccinations) OVER (PARTITION BY location ORDER BY location, date) as PeopleVaccinated
+    FROM `famous-cursor-380420.Project1.Covid_Data`
+    WHERE continent IS NOT NULL
+) AS subquery
+--WHERE location like 'Algeria'
+ORDER BY continent, location, date;
+
+--Per Country vaccination percentage
+
+SELECT location, population, MAX(total_vaccinations) as TotalVaccination, MAX((total_vaccinations/population))*100 as PercentofPopulationVaccinated
+FROM `famous-cursor-380420.Project1.Covid_Data`
+Where continent is not null
+GROUP BY location, population
+ORDER BY PercentofPopulationVaccinated desc;
+
+--Looking for vaccination rate for differrent income level
+SELECT location, population, MAX(total_vaccinations) as TotalVaccination, MAX((total_vaccinations/population))*100 as PercentofPopulationVaccinated
+FROM `famous-cursor-380420.Project1.Covid_Data`
+WHERE location IN ('High income', 'Low income', 'Upper middle income', 'Lower middle income')
+GROUP BY location, population
+ORDER BY PercentofPopulationVaccinated desc;
